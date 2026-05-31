@@ -1,0 +1,9 @@
+Olá amigo!
+
+Este é o primeiro arquivo enviado pelo WilDeep.
+Ele será fragmentado em 500 partes, criptografado em cores, invertido,
+e enviado por rotas diferentes.
+
+Se você consegue ler isto, o sistema funcionou!
+
+Assinado: Wilson
