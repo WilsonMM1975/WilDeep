@@ -1,0 +1,4 @@
+WilDeep ChromaCrypt — Teste de segurança completo!
+Fragmentação: 500 partes | Shamir K=200 | GF(256)
+Criptografia: XOR por sub-chave derivada | Inversão de bits
+Rotas: paralelas com latência simulada

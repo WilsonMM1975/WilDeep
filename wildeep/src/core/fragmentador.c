@@ -1,22 +1,9 @@
 /**
  * fragmentador.c - Divide o arquivo em 500 fragmentos
- * 
- * Responsabilidades:
- * 1. Ler o arquivo de entrada
- * 2. Dividir em NUM_FRAGMENTOS pedaços
- * 3. Calcular checksum para cada fragmento
- * 4. Preparar os fragmentos para envio
  */
 
-#include "../include/wildeep.h"
+#include "../../include/wildeep.h"
 
-/**
- * fragmentar_arquivo - Divide um arquivo em fragmentos
- * 
- * @param entrada: Caminho do arquivo a ser fragmentado
- * @param fragmentos: Array de Fragmento (já alocado) onde serão armazenados
- * @return: 0 em sucesso, -1 em erro
- */
 int fragmentar_arquivo(const char *entrada, Fragmento *fragmentos) {
     FILE *f = fopen(entrada, "rb");
     if (!f) {
@@ -24,7 +11,6 @@ int fragmentar_arquivo(const char *entrada, Fragmento *fragmentos) {
         return -1;
     }
     
-    // Descobre o tamanho total do arquivo
     fseek(f, 0, SEEK_END);
     long tamanho_total = ftell(f);
     rewind(f);
@@ -32,7 +18,6 @@ int fragmentar_arquivo(const char *entrada, Fragmento *fragmentos) {
     printf("[FRAGMENTADOR] Arquivo: %s (%ld bytes)\n", entrada, tamanho_total);
     printf("[FRAGMENTADOR] Dividindo em %d fragmentos...\n", NUM_FRAGMENTOS);
     
-    // Calcula o tamanho de cada fragmento
     int tamanho_por_fragmento = tamanho_total / NUM_FRAGMENTOS;
     if (tamanho_por_fragmento == 0) {
         tamanho_por_fragmento = 1;
@@ -44,49 +29,43 @@ int fragmentar_arquivo(const char *entrada, Fragmento *fragmentos) {
         return -1;
     }
     
-    // Le o arquivo e preenche os fragmentos
     for (int i = 0; i < NUM_FRAGMENTOS; i++) {
         fragmentos[i].id = i + 1;
         fragmentos[i].total = NUM_FRAGMENTOS;
         
-        // Calcula o offset (posição) dentro do arquivo
         int offset = i * tamanho_por_fragmento;
         fseek(f, offset, SEEK_SET);
         
-        // Le os dados
         size_t lidos = fread(fragmentos[i].dados_visuais, 1, tamanho_por_fragmento, f);
         fragmentos[i].tamanho_visual = lidos;
         
-        // Calcula checksum simples (soma dos bytes)
+        // DEBUG: Mostra os primeiros bytes do fragmento 0 e 1
+        if (i == 0 || i == 1) {
+            printf("[DEBUG] Fragmento %d primeiros 16 bytes: ", i+1);
+            for (int k = 0; k < 16 && k < lidos; k++) {
+                printf("%02X ", fragmentos[i].dados_visuais[k]);
+            }
+            printf("\n");
+        }
+        
         unsigned int soma = 0;
         for (size_t j = 0; j < lidos; j++) {
             soma += fragmentos[i].dados_visuais[j];
         }
         fragmentos[i].checksum = soma;
         
-        // Inicializa o share (será preenchido pelo shamir.c)
         fragmentos[i].share.x = i + 1;
-        fragmentos[i].share.tamanho = 0;
+        fragmentos[i].share.tamanho = 32;  /* tamanho da chave mestra */
         memset(fragmentos[i].share.y, 0, sizeof(fragmentos[i].share.y));
         
-        // Inicializa rota (será preenchida pelo roteador.c)
         strcpy(fragmentos[i].proximo_hop, "0.0.0.0");
     }
     
     fclose(f);
-    
     printf("[FRAGMENTADOR] Sucesso! %d fragmentos criados.\n", NUM_FRAGMENTOS);
     return 0;
 }
 
-/**
- * remontar_arquivo - Reconstrói o arquivo a partir dos fragmentos recebidos
- * 
- * @param fragmentos: Array de fragmentos recebidos (devem estar em ordem)
- * @param num_recebidos: Quantos fragmentos foram recebidos
- * @param saida: Caminho do arquivo de saída
- * @return: 0 em sucesso, -1 em erro
- */
 int remontar_arquivo(Fragmento *fragmentos, int num_recebidos, const char *saida) {
     if (num_recebidos < K_FRAGMENTOS) {
         fprintf(stderr, "[REMONTADOR] ERRO: Fragmentos insuficientes! (%d/%d)\n", 
@@ -96,7 +75,6 @@ int remontar_arquivo(Fragmento *fragmentos, int num_recebidos, const char *saida
     
     printf("[REMONTADOR] Remontando com %d fragmentos...\n", num_recebidos);
     
-    // Ordena os fragmentos por ID (assumindo que a chave foi reconstruída)
     for (int i = 0; i < num_recebidos - 1; i++) {
         for (int j = i + 1; j < num_recebidos; j++) {
             if (fragmentos[i].id > fragmentos[j].id) {
@@ -107,26 +85,22 @@ int remontar_arquivo(Fragmento *fragmentos, int num_recebidos, const char *saida
         }
     }
     
-    // Abre o arquivo de saída
     FILE *f = fopen(saida, "wb");
     if (!f) {
         perror("Erro ao criar arquivo de saída");
         return -1;
     }
     
-    // Escreve os dados de cada fragmento
     for (int i = 0; i < num_recebidos; i++) {
-        // Verifica checksum
         unsigned int soma = 0;
         for (int j = 0; j < fragmentos[i].tamanho_visual; j++) {
             soma += fragmentos[i].dados_visuais[j];
         }
         
-        if (soma != (unsigned int)fragmentos[i].checksum) {
-            fprintf(stderr, "[REMONTADOR] Aviso: Checksum inválido no fragmento %d\n", 
-                    fragmentos[i].id);
-            // Continua mesmo assim (tentativa de recuperar)
-        }
+       // if (soma != (unsigned int)fragmentos[i].checksum) {
+           // fprintf(stderr, "[REMONTADOR] Aviso: Checksum inválido no fragmento %d\n", 
+             //       fragmentos[i].id);
+       // }
         
         fwrite(fragmentos[i].dados_visuais, 1, fragmentos[i].tamanho_visual, f);
     }

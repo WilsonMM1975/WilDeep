@@ -123,4 +123,6 @@ void enviar_fragmento_paralelo(Fragmento *frag, RotaInfo *rota);
 // ---------- main.c (funções auxiliares) ----------
 void imprimir_ajuda(void);
 
+void salvar_imagem_ppm(const unsigned char *imagem, int largura, int altura, const char *nome);
+
 #endif // WILDEEP_H
